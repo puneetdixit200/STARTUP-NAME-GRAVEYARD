@@ -1,9 +1,20 @@
 import type { Startup } from "../types";
+import { MAX_GRAVES_PER_GRAVEYARD } from "./startupGenerator";
+import { createOpenDataStartup, readWikipediaCategoryTitles } from "./realData";
 
 const CORPORATE_BS_URL = "https://corporatebs-generator.sameerkumar.website/";
 const BORED_URL = "https://bored-api.appbrewery.com/random";
 const USELESS_FACT_URL = "https://uselessfacts.jsph.pl/api/v2/facts/random";
 const DOMAINS_URL = "https://api.domainsdb.info/v1/domains/search";
+const WIKIPEDIA_CATEGORY_URL = "https://en.wikipedia.org/w/api.php";
+const WIKIPEDIA_SUMMARY_URL = "https://en.wikipedia.org/api/rest_v1/page/summary";
+const WIKIDATA_ENTITY_URL = "https://www.wikidata.org/wiki/Special:EntityData";
+
+const realCompanyCategories = [
+  "Category:Defunct_online_companies_of_the_United_States",
+  "Category:Defunct_software_companies_of_the_United_States",
+  "Category:Defunct_websites"
+];
 
 const fallbackActivities = [
   "teach houseplants agile",
@@ -50,6 +61,27 @@ export async function fetchEulogyIngredients(): Promise<{
   return { uselessFact, boredActivity };
 }
 
+export async function fetchOpenDataStartups(limit = MAX_GRAVES_PER_GRAVEYARD): Promise<Startup[]> {
+  const cappedLimit = Math.max(0, Math.min(limit, MAX_GRAVES_PER_GRAVEYARD));
+  if (cappedLimit === 0) {
+    return [];
+  }
+
+  const titles = await fetchOpenDataTitles(cappedLimit);
+  const summaries = await Promise.all(titles.map((title) => fetchWikipediaSummary(title)));
+  const startups = await Promise.all(
+    summaries
+      .filter((summary): summary is Record<string, unknown> => Boolean(summary))
+      .map(async (summary, index) => {
+        const wikidataId = typeof summary.wikibase_item === "string" ? summary.wikibase_item : null;
+        const wikidata = wikidataId ? await fetchWikidataEntity(wikidataId) : null;
+        return createOpenDataStartup({ index, summary, wikidata });
+      })
+  );
+
+  return startups.slice(0, cappedLimit);
+}
+
 export async function fetchDomainHint(startup: Startup): Promise<string> {
   const baseName = startup.name.toLowerCase().replace(/\.(ai|io)$/i, "").replace(/[^a-z0-9-]/g, "");
 
@@ -63,6 +95,46 @@ export async function fetchDomainHint(startup: Startup): Promise<string> {
     return domains.length > 0 ? `${domains.length} lookalike domains already lurking` : "no exact ghosts found";
   } catch {
     return "domain oracle refused comment";
+  }
+}
+
+async function fetchOpenDataTitles(limit: number): Promise<string[]> {
+  const titles: string[] = [];
+
+  for (const category of realCompanyCategories) {
+    if (titles.length >= limit) {
+      break;
+    }
+
+    const url = new URL(WIKIPEDIA_CATEGORY_URL);
+    url.searchParams.set("action", "query");
+    url.searchParams.set("list", "categorymembers");
+    url.searchParams.set("cmtitle", category);
+    url.searchParams.set("cmlimit", String(limit - titles.length));
+    url.searchParams.set("format", "json");
+    url.searchParams.set("origin", "*");
+
+    const data = await fetchJson(url.toString());
+    titles.push(...readWikipediaCategoryTitles(data));
+  }
+
+  return Array.from(new Set(titles)).slice(0, limit);
+}
+
+async function fetchWikipediaSummary(title: string): Promise<Record<string, unknown> | null> {
+  try {
+    const data = await fetchJson(`${WIKIPEDIA_SUMMARY_URL}/${encodeURIComponent(title)}`);
+    return data && typeof data === "object" ? (data as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchWikidataEntity(entityId: string): Promise<unknown> {
+  try {
+    return await fetchJson(`${WIKIDATA_ENTITY_URL}/${encodeURIComponent(entityId)}.json`);
+  } catch {
+    return null;
   }
 }
 

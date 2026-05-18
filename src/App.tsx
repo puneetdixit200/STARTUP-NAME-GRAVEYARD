@@ -25,7 +25,7 @@ import {
   updateStartup,
   withStartupTagline
 } from "./lib/startupGenerator";
-import { fetchBuzzwordBatch, fetchDomainHint, fetchEulogyIngredients } from "./lib/api";
+import { fetchBuzzwordBatch, fetchDomainHint, fetchEulogyIngredients, fetchOpenDataStartups } from "./lib/api";
 import { buildEulogy, resurrectStartup } from "./lib/eulogy";
 import { downloadTombstoneCard } from "./lib/shareCard";
 import type { GraveyardMode, Startup, StartupSector } from "./types";
@@ -51,6 +51,8 @@ export default function App() {
   const [audioEnabled, setAudioEnabled] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeSector, setActiveSector] = useState<StartupSector | "All">("All");
+  const [realDataStatus, setRealDataStatus] = useState<"idle" | "loading" | "live" | "fallback">("idle");
+  const [openDataLoaded, setOpenDataLoaded] = useState(false);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const soundscapeRef = useRef<Soundscape | null>(null);
 
@@ -141,6 +143,39 @@ export default function App() {
     return () => stopSoundscape(soundscapeRef);
   }, []);
 
+  useEffect(() => {
+    if (mode !== "real" || openDataLoaded || import.meta.env.MODE === "test") {
+      return;
+    }
+
+    let cancelled = false;
+
+    fetchOpenDataStartups(MAX_GRAVES_PER_GRAVEYARD)
+      .then((startups) => {
+        if (cancelled) {
+          return;
+        }
+
+        if (startups.length > 0) {
+          setRealCemetery(startups);
+          setRealDataStatus("live");
+        } else {
+          setRealDataStatus("fallback");
+        }
+        setOpenDataLoaded(true);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setRealDataStatus("fallback");
+          setOpenDataLoaded(true);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, openDataLoaded]);
+
   const generateNewGraveyard = () => {
     setMode("generated");
     setSelectedId(null);
@@ -220,7 +255,11 @@ export default function App() {
             type="button"
             className={mode === "real" ? "active" : ""}
             onClick={() => {
-              setMode(mode === "real" ? "generated" : "real");
+              const nextMode = mode === "real" ? "generated" : "real";
+              setMode(nextMode);
+              if (nextMode === "real" && !openDataLoaded) {
+                setRealDataStatus("loading");
+              }
               setSelectedId(null);
             }}
           >
@@ -326,7 +365,7 @@ export default function App() {
       </section>
 
       <div ref={sentinelRef} className="scroll-sentinel">
-        {mode === "generated" ? "Maximum 20 graves exhumed per graveyard." : "Reality mode has enough casualties."}
+        {mode === "generated" ? "Maximum 20 graves exhumed per graveyard." : realDataMessage(realDataStatus)}
       </div>
 
       {selectedStartup && eulogy && (
@@ -344,6 +383,22 @@ export default function App() {
       </a>
     </main>
   );
+}
+
+function realDataMessage(status: "idle" | "loading" | "live" | "fallback"): string {
+  if (status === "loading") {
+    return "Exhuming live company data from Wikipedia and Wikidata.";
+  }
+
+  if (status === "live") {
+    return "Real graves sourced from Wikipedia and Wikidata.";
+  }
+
+  if (status === "fallback") {
+    return "Open data was unreachable, so the curated real cemetery is showing.";
+  }
+
+  return "Reality mode has enough casualties.";
 }
 
 function Tombstone({

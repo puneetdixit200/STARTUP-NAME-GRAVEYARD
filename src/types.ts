@@ -37,6 +37,8 @@ export interface Startup {
   sector: StartupSector;
   resurrections: number;
   origin?: string;
+  sourceUrl?: string;
+  wikidataId?: string;
 }
 
 export interface Leaderboard {
