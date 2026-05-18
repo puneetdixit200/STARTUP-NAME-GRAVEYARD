@@ -3,12 +3,12 @@ import { describe, expect, test } from "vitest";
 import App from "./App";
 
 describe("Startup Name Graveyard app", () => {
-  test("renders the graveyard controls and generated tombstones", async () => {
+  test("starts on real startup graves with generated mode available as an option", async () => {
     render(<App />);
 
     expect(screen.getByRole("heading", { name: /Startup Name Graveyard/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Generate New Graveyard/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Real Startup Graveyard/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Real Startup Graveyard/i })).toHaveClass("active");
     expect(screen.getByRole("button", { name: /Enter Mystery Soundscape/i })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Dig a grave/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("searchbox", { name: /Search the graveyard/i })).not.toBeInTheDocument();
@@ -21,6 +21,8 @@ describe("Startup Name Graveyard app", () => {
     await waitFor(() => {
       expect(screen.getAllByRole("button", { name: /Open eulogy for/i }).length).toBeGreaterThan(5);
     });
+    expect(screen.getByRole("button", { name: /Open eulogy for Quibi/i })).toBeInTheDocument();
+    expect(screen.getByText(/Reality mode has enough casualties/i)).toBeInTheDocument();
   });
 
   test("opens eulogy, resurrects a startup, and exposes share action", async () => {
@@ -37,14 +39,21 @@ describe("Startup Name Graveyard app", () => {
     expect((await screen.findAllByText(/Died again. This time as a DAO./i)).length).toBeGreaterThan(0);
   });
 
-  test("switches to real startup graves without search or custom burial controls", async () => {
+  test("keeps real startup graves without search or custom burial controls", async () => {
     render(<App />);
-
-    fireEvent.click(screen.getByRole("button", { name: /Real Startup Graveyard/i }));
 
     expect(await screen.findByRole("button", { name: /Open eulogy for Quibi/i })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Dig a grave/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("searchbox", { name: /Search the graveyard/i })).not.toBeInTheDocument();
+  });
+
+  test("can still generate a fake graveyard after starting with real data", async () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Generate New Graveyard/i }));
+
+    expect(await screen.findByText(/Maximum 20 graves exhumed per graveyard/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Open eulogy for Quibi/i })).not.toBeInTheDocument();
   });
 
   test("toggles the mystery soundscape control", () => {

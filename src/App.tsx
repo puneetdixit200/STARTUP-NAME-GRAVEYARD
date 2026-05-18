@@ -31,7 +31,7 @@ const MORE_COUNT = 12;
 export default function App() {
   const [generatedStartups, setGeneratedStartups] = useState<Startup[]>(() => generateStartups(INITIAL_COUNT));
   const [realCemetery, setRealCemetery] = useState<Startup[]>(realStartups);
-  const [mode, setMode] = useState<GraveyardMode>("generated");
+  const [mode, setMode] = useState<GraveyardMode>("real");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [eulogyIngredients, setEulogyIngredients] = useState<{
     selectedId: string;
@@ -41,7 +41,9 @@ export default function App() {
   const [rumbling, setRumbling] = useState(false);
   const [resurrectingId, setResurrectingId] = useState<string | null>(null);
   const [audioEnabled, setAudioEnabled] = useState(false);
-  const [realDataStatus, setRealDataStatus] = useState<"idle" | "loading" | "live" | "fallback">("idle");
+  const [realDataStatus, setRealDataStatus] = useState<"idle" | "loading" | "live" | "fallback">(() =>
+    import.meta.env.MODE === "test" ? "idle" : "loading"
+  );
   const [openDataLoaded, setOpenDataLoaded] = useState(false);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const soundscapeRef = useRef<Soundscape | null>(null);
@@ -228,9 +230,8 @@ export default function App() {
             type="button"
             className={mode === "real" ? "active" : ""}
             onClick={() => {
-              const nextMode = mode === "real" ? "generated" : "real";
-              setMode(nextMode);
-              if (nextMode === "real" && !openDataLoaded) {
+              setMode("real");
+              if (!openDataLoaded) {
                 setRealDataStatus("loading");
               }
               setSelectedId(null);
