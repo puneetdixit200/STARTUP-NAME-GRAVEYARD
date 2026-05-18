@@ -420,9 +420,46 @@ h1 {
   transform-style: preserve-3d;
 }
 
+.depth-0 {
+  --grave-scale: 1;
+}
+
+.depth-1 {
+  --grave-scale: 0.965;
+}
+
+.depth-2 {
+  --grave-scale: 0.93;
+}
+
+.depth-3 {
+  --grave-scale: 0.895;
+}
+
+.depth-4 {
+  --grave-scale: 0.86;
+}
+
+.depth-5 {
+  --grave-scale: 0.825;
+}
+
+.depth-6 {
+  --grave-scale: 0.79;
+}
+
+.depth-7 {
+  --grave-scale: 0.755;
+}
+
+.depth-8 {
+  --grave-scale: 0.72;
+}
+
 .tombstone {
   position: relative;
   isolation: isolate;
+  --grave-scale: 1;
   display: grid;
   justify-items: center;
   align-content: start;
@@ -448,7 +485,8 @@ h1 {
     inset 12px 0 22px rgba(255, 255, 255, 0.04),
     inset -18px -28px 42px rgba(0, 0, 0, 0.62),
     0 26px 42px rgba(0, 0, 0, 0.46);
-  transform: translateY(calc(var(--depth) * 9px)) translateZ(calc(var(--depth) * -34px)) rotateX(7deg);
+  transform: translateY(calc(var(--depth) * 9px)) scale(var(--grave-scale));
+  transform-origin: center bottom;
   opacity: calc(1 - (var(--depth) * 0.045));
   filter: blur(calc(var(--depth) * 0.09px));
   animation: grave-rise 620ms ease both;
@@ -491,7 +529,7 @@ h1 {
     0 0 30px rgba(74, 106, 154, 0.42),
     0 30px 50px rgba(0, 0, 0, 0.58);
   filter: blur(0);
-  transform: translateY(calc(var(--depth) * 9px - 8px)) translateZ(calc(var(--depth) * -34px)) rotateX(3deg);
+  transform: translateY(calc(var(--depth) * 9px - 8px)) scale(var(--grave-scale));
 }
 
 .tombstone.resurrecting {
