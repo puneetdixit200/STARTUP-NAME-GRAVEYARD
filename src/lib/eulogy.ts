@@ -44,19 +44,20 @@ export function buildEulogy({
 
 function buildRealStartupMetrics(startup: Startup): string[] {
   const sourceName = startup.wikidataId ? "Wikidata" : startup.sourceUrl ? "Wikipedia" : "curated fallback data";
-  const unavailable = "Not available from Wikipedia or Wikidata.";
+  const metrics: string[] = [];
 
-  return [
-    `Founded: ${formatKnownApiValue(startup.founded, sourceName)}`,
-    `Died: ${formatKnownApiValue(startup.died, sourceName)}`,
-    `Series/Funding: ${unavailable}`,
-    `Pivot Count: ${unavailable}`,
-    `Last Pivot: ${unavailable}`,
-    `Total Users: ${unavailable}`,
-    `Runway: ${unavailable}`,
-    `Valuation: ${unavailable}`,
-    `Source: ${sourceLabel(startup)}.`
-  ];
+  if (startup.founded !== "Unknown") {
+    metrics.push(`Founded: ${startup.founded} (${sourceName}).`);
+  }
+
+  if (startup.died !== "Unknown") {
+    metrics.push(`Died: ${startup.died} (${sourceName}).`);
+  }
+
+  metrics.push(`Source: ${sourceLabel(startup)}.`);
+  metrics.push("Unavailable from open data: funding rounds, pivot count, last pivot, users, runway, valuation.");
+
+  return metrics;
 }
 
 function buildRealCauseOfDeath(startup: Startup): string {
@@ -64,11 +65,7 @@ function buildRealCauseOfDeath(startup: Startup): string {
     return `Cause of Death: ${startup.causeOfDeath}`;
   }
 
-  return "Cause of Death: Specific cause is not available from Wikipedia or Wikidata. Recorded status: defunct/dissolved in open records.";
-}
-
-function formatKnownApiValue(value: string, sourceName: string): string {
-  return value === "Unknown" ? "Not available from Wikipedia or Wikidata." : `${value} (${sourceName}).`;
+  return "Recorded Status: Defunct/dissolved in open records.";
 }
 
 function sourceLabel(startup: Startup): string {

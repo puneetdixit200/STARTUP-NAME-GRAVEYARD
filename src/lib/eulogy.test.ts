@@ -61,18 +61,11 @@ describe("eulogies", () => {
     expect(eulogy.metrics).toEqual([
       "Founded: 2012 (Wikidata).",
       "Died: 2014 (Wikidata).",
-      "Series/Funding: Not available from Wikipedia or Wikidata.",
-      "Pivot Count: Not available from Wikipedia or Wikidata.",
-      "Last Pivot: Not available from Wikipedia or Wikidata.",
-      "Total Users: Not available from Wikipedia or Wikidata.",
-      "Runway: Not available from Wikipedia or Wikidata.",
-      "Valuation: Not available from Wikipedia or Wikidata.",
-      "Source: Wikipedia + Wikidata Q4687964."
+      "Source: Wikipedia + Wikidata Q4687964.",
+      "Unavailable from open data: funding rounds, pivot count, last pivot, users, runway, valuation."
     ]);
     expect(eulogy.metrics.join(" ")).not.toContain("Kevorkian");
-    expect(eulogy.cause).toBe(
-      "Cause of Death: Specific cause is not available from Wikipedia or Wikidata. Recorded status: defunct/dissolved in open records."
-    );
+    expect(eulogy.cause).toBe("Recorded Status: Defunct/dissolved in open records.");
   });
 
   test("resurrecting a startup pivots it to crypto and records a second death", () => {
