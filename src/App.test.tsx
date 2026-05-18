@@ -47,13 +47,16 @@ describe("Startup Name Graveyard app", () => {
     expect(screen.queryByRole("searchbox", { name: /Search the graveyard/i })).not.toBeInTheDocument();
   });
 
-  test("can still generate a fake graveyard after starting with real data", async () => {
+  test("refreshes real startup graves with a skeleton loading skin", async () => {
     render(<App />);
 
     fireEvent.click(screen.getByRole("button", { name: /Generate New Graveyard/i }));
 
-    expect(await screen.findByText(/Maximum 20 graves exhumed per graveyard/i)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Open eulogy for Quibi/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Real Startup Graveyard/i })).toHaveClass("active");
+    expect(await screen.findByText(/Exhuming live company data/i)).toBeInTheDocument();
+    expect(screen.getByRole("status", { name: /Loading real startup graves/i })).toBeInTheDocument();
+    expect(screen.getAllByTestId("loading-grave")).toHaveLength(20);
+    expect(screen.queryByText(/Maximum 20 graves exhumed per graveyard/i)).not.toBeInTheDocument();
   });
 
   test("toggles the mystery soundscape control", () => {

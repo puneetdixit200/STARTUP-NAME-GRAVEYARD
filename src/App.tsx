@@ -27,6 +27,7 @@ import type { GraveyardMode, Startup } from "./types";
 
 const INITIAL_COUNT = 20;
 const MORE_COUNT = 12;
+const REAL_LOADING_GRAVES = MAX_GRAVES_PER_GRAVEYARD;
 
 export default function App() {
   const [generatedStartups, setGeneratedStartups] = useState<Startup[]>(() => generateStartups(INITIAL_COUNT));
@@ -44,15 +45,16 @@ export default function App() {
   const [realDataStatus, setRealDataStatus] = useState<"idle" | "loading" | "live" | "fallback">(() =>
     import.meta.env.MODE === "test" ? "idle" : "loading"
   );
-  const [openDataLoaded, setOpenDataLoaded] = useState(false);
+  const [realDataRefreshKey, setRealDataRefreshKey] = useState(0);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const soundscapeRef = useRef<Soundscape | null>(null);
 
+  const isLoadingRealStartups = mode === "real" && realDataStatus === "loading";
   const currentStartups = mode === "generated" ? generatedStartups : realCemetery;
   const baseStartups = currentStartups.slice(0, MAX_GRAVES_PER_GRAVEYARD);
-  const visibleStartups = baseStartups;
+  const visibleStartups = isLoadingRealStartups ? [] : baseStartups;
   const selectedStartup = baseStartups.find((startup) => startup.id === selectedId) ?? null;
-  const leaderboard = useMemo(() => calculateLeaderboard(visibleStartups), [visibleStartups]);
+  const leaderboard = useMemo(() => calculateLeaderboard(baseStartups), [baseStartups]);
   const seasonalEvent = useMemo(() => getSeasonalEvent(), []);
   const eulogy = useMemo(() => {
     if (!selectedStartup) {
@@ -133,7 +135,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (mode !== "real" || openDataLoaded || import.meta.env.MODE === "test") {
+    if (mode !== "real" || import.meta.env.MODE === "test") {
       return;
     }
 
@@ -149,27 +151,29 @@ export default function App() {
           setRealCemetery(startups);
           setRealDataStatus("live");
         } else {
+          setRealCemetery(realStartups);
           setRealDataStatus("fallback");
         }
-        setOpenDataLoaded(true);
       })
       .catch(() => {
         if (!cancelled) {
+          setRealCemetery(realStartups);
           setRealDataStatus("fallback");
-          setOpenDataLoaded(true);
         }
       });
 
     return () => {
       cancelled = true;
     };
-  }, [mode, openDataLoaded]);
+  }, [mode, realDataRefreshKey]);
 
   const generateNewGraveyard = () => {
-    setMode("generated");
+    setMode("real");
     setSelectedId(null);
+    setEulogyIngredients(null);
+    setRealDataStatus("loading");
     setRumbling(true);
-    setGeneratedStartups(generateStartups(INITIAL_COUNT, Date.now() % 1000));
+    setRealDataRefreshKey((current) => current + 1);
     window.setTimeout(() => setRumbling(false), 700);
   };
 
@@ -231,8 +235,9 @@ export default function App() {
             className={mode === "real" ? "active" : ""}
             onClick={() => {
               setMode("real");
-              if (!openDataLoaded) {
+              if (realDataStatus !== "live") {
                 setRealDataStatus("loading");
+                setRealDataRefreshKey((current) => current + 1);
               }
               setSelectedId(null);
             }}
@@ -254,25 +259,29 @@ export default function App() {
         )}
       </section>
 
-      <VCTicker startups={visibleStartups} />
+      <VCTicker startups={baseStartups} />
 
       <LeaderboardPanel leaderboard={leaderboard} />
 
       <section className="graveyard" aria-label="Startup tombstones">
-        {visibleStartups.map((startup, index) => (
-          <Tombstone
-            key={startup.id}
-            startup={startup}
-            index={index}
-            active={startup.id === selectedId}
-            resurrecting={startup.id === resurrectingId}
-            onOpen={() => setSelectedId(startup.id)}
-          />
-        ))}
+        {isLoadingRealStartups ? (
+          <GraveyardSkeleton />
+        ) : (
+          visibleStartups.map((startup, index) => (
+            <Tombstone
+              key={startup.id}
+              startup={startup}
+              index={index}
+              active={startup.id === selectedId}
+              resurrecting={startup.id === resurrectingId}
+              onOpen={() => setSelectedId(startup.id)}
+            />
+          ))
+        )}
       </section>
 
       <div ref={sentinelRef} className="scroll-sentinel">
-        {mode === "generated" ? "Maximum 20 graves exhumed per graveyard." : realDataMessage(realDataStatus)}
+        {realDataMessage(realDataStatus)}
       </div>
 
       {selectedStartup && eulogy && (
@@ -306,6 +315,36 @@ function realDataMessage(status: "idle" | "loading" | "live" | "fallback"): stri
   }
 
   return "Reality mode has enough casualties.";
+}
+
+function GraveyardSkeleton() {
+  return (
+    <div className="graveyard-loading" role="status" aria-label="Loading real startup graves">
+      {Array.from({ length: REAL_LOADING_GRAVES }, (_, index) => {
+        const depth = Math.min(8, Math.floor(index / 4));
+        const style = {
+          "--depth": depth,
+          "--delay": `${(index % 12) * 60}ms`
+        } as CSSProperties;
+
+        return (
+          <article
+            key={index}
+            className={`tombstone tombstone-skeleton depth-${depth}`}
+            style={style}
+            data-testid="loading-grave"
+            aria-hidden="true"
+          >
+            <span className="skeleton-logo" />
+            <span className="skeleton-line skeleton-title" />
+            <span className="skeleton-line" />
+            <span className="skeleton-line short" />
+            <span className="skeleton-rip" />
+          </article>
+        );
+      })}
+    </div>
+  );
 }
 
 function Tombstone({
