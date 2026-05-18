@@ -16,6 +16,15 @@ interface WikipediaSummary {
   wikibase_item?: unknown;
 }
 
+export interface KilledByGoogleItem {
+  name?: unknown;
+  dateOpen?: unknown;
+  dateClose?: unknown;
+  description?: unknown;
+  type?: unknown;
+  link?: unknown;
+}
+
 export function readWikipediaCategoryTitles(data: unknown): string[] {
   if (!data || typeof data !== "object") {
     return [];
@@ -80,7 +89,47 @@ export function createOpenDataStartup({
     sector: inferSector({ name, tagline, index }),
     origin: readString(summary.extract) ?? `Source: ${sourceUrl ?? "Wikipedia"}`,
     sourceUrl,
-    wikidataId
+    wikidataId,
+    dataSource: wikidataId ? "Wikipedia + Wikidata" : "Wikipedia"
+  };
+}
+
+export function createKilledByGoogleStartup({
+  index,
+  item
+}: {
+  index: number;
+  item: KilledByGoogleItem;
+}): Startup {
+  const name = readString(item.name) ?? "Unnamed Google product";
+  const type = readString(item.type) ?? "product";
+  const description = readString(item.description) ?? `A discontinued Google ${type}.`;
+  const sourceUrl = readString(item.link) ?? "https://killedbygoogle.com/";
+  const founded = readIsoYear(item.dateOpen) ?? "Unknown";
+  const died = readIsoYear(item.dateClose) ?? "Unknown";
+
+  return {
+    ...createStartup({
+      index,
+      random: seededRandom(index + name.length + 9000),
+      tagline: description,
+      domainHint: "Killed by Google dataset"
+    }),
+    id: `real-google-${slugify(name)}`,
+    name,
+    tagline: description,
+    founded,
+    died,
+    logoDomain: "google.com",
+    logoUrl: "https://logo.clearbit.com/google.com",
+    domainHint: "Killed by Google dataset",
+    causeOfDeath: "Listed as discontinued in the Killed by Google public dataset.",
+    epitaph: `Launched: ${founded}. Killed: ${died}.`,
+    mode: "real",
+    sector: inferSector({ name, tagline: `${description} ${type}`, index }),
+    origin: description,
+    sourceUrl,
+    dataSource: "Killed by Google"
   };
 }
 
@@ -162,6 +211,15 @@ function inferSector({ name, tagline, index }: { name: string; tagline: string; 
 
 function readString(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function readIsoYear(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const match = /^(\d{4})/.exec(value.trim());
+  return match ? match[1] : null;
 }
 
 function domainFromUrl(value: string | null | undefined): string | null {

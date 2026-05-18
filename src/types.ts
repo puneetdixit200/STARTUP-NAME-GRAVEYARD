@@ -39,6 +39,7 @@ export interface Startup {
   origin?: string;
   sourceUrl?: string;
   wikidataId?: string;
+  dataSource?: "Wikipedia" | "Wikipedia + Wikidata" | "Killed by Google" | "Curated fallback";
 }
 
 export interface Leaderboard {

@@ -1,6 +1,11 @@
 import type { Startup } from "../types";
 import { MAX_GRAVES_PER_GRAVEYARD } from "./startupGenerator";
-import { createOpenDataStartup, readWikipediaCategoryTitles } from "./realData";
+import {
+  createKilledByGoogleStartup,
+  createOpenDataStartup,
+  readWikipediaCategoryTitles,
+  type KilledByGoogleItem
+} from "./realData";
 
 const CORPORATE_BS_URL = "https://corporatebs-generator.sameerkumar.website/";
 const BORED_URL = "https://bored-api.appbrewery.com/random";
@@ -9,6 +14,7 @@ const DOMAINS_URL = "https://api.domainsdb.info/v1/domains/search";
 const WIKIPEDIA_CATEGORY_URL = "https://en.wikipedia.org/w/api.php";
 const WIKIPEDIA_SUMMARY_URL = "https://en.wikipedia.org/api/rest_v1/page/summary";
 const WIKIDATA_ENTITY_URL = "https://www.wikidata.org/wiki/Special:EntityData";
+const KILLED_BY_GOOGLE_URL = "https://raw.githubusercontent.com/codyogden/killedbygoogle/main/graveyard.json";
 
 const realCompanyCategories = [
   "Category:Defunct_online_companies_of_the_United_States",
@@ -67,9 +73,21 @@ export async function fetchOpenDataStartups(limit = MAX_GRAVES_PER_GRAVEYARD): P
     return [];
   }
 
-  const titles = await fetchOpenDataTitles(cappedLimit);
+  const [googleResult, wikimediaResult] = await Promise.allSettled([
+    fetchKilledByGoogleStartups(cappedLimit),
+    fetchWikimediaStartups(cappedLimit)
+  ]);
+
+  const googleStartups = googleResult.status === "fulfilled" ? googleResult.value : [];
+  const wikimediaStartups = wikimediaResult.status === "fulfilled" ? wikimediaResult.value : [];
+
+  return mergeStartups(interleaveStartups([googleStartups, wikimediaStartups])).slice(0, cappedLimit);
+}
+
+async function fetchWikimediaStartups(limit: number): Promise<Startup[]> {
+  const titles = await fetchOpenDataTitles(limit);
   const summaries = await Promise.all(titles.map((title) => fetchWikipediaSummary(title)));
-  const startups = await Promise.all(
+  return Promise.all(
     summaries
       .filter((summary): summary is Record<string, unknown> => Boolean(summary))
       .map(async (summary, index) => {
@@ -78,8 +96,13 @@ export async function fetchOpenDataStartups(limit = MAX_GRAVES_PER_GRAVEYARD): P
         return createOpenDataStartup({ index, summary, wikidata });
       })
   );
+}
 
-  return startups.slice(0, cappedLimit);
+async function fetchKilledByGoogleStartups(limit: number): Promise<Startup[]> {
+  const data = await fetchJson(KILLED_BY_GOOGLE_URL);
+  return readKilledByGoogleItems(data)
+    .slice(0, limit)
+    .map((item, index) => createKilledByGoogleStartup({ index, item }));
 }
 
 export async function fetchDomainHint(startup: Startup): Promise<string> {
@@ -210,6 +233,54 @@ function readArrayField(data: unknown, field: string): unknown[] {
 
   const value = (data as Record<string, unknown>)[field];
   return Array.isArray(value) ? value : [];
+}
+
+function readKilledByGoogleItems(data: unknown): KilledByGoogleItem[] {
+  if (!Array.isArray(data)) {
+    return [];
+  }
+
+  return data.filter((item): item is KilledByGoogleItem => {
+    if (!item || typeof item !== "object") {
+      return false;
+    }
+
+    const record = item as Record<string, unknown>;
+    return typeof record.name === "string" && record.name.trim().length > 0;
+  });
+}
+
+function mergeStartups(startups: Startup[]): Startup[] {
+  const seen = new Set<string>();
+  const merged: Startup[] = [];
+
+  for (const startup of startups) {
+    const key = startup.name.toLowerCase().replace(/[^a-z0-9]+/g, "");
+    if (seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    merged.push(startup);
+  }
+
+  return merged;
+}
+
+function interleaveStartups(sourceGroups: Startup[][]): Startup[] {
+  const longestGroup = Math.max(0, ...sourceGroups.map((group) => group.length));
+  const merged: Startup[] = [];
+
+  for (let index = 0; index < longestGroup; index += 1) {
+    for (const group of sourceGroups) {
+      const startup = group[index];
+      if (startup) {
+        merged.push(startup);
+      }
+    }
+  }
+
+  return merged;
 }
 
 function cleanSentence(value: string): string {

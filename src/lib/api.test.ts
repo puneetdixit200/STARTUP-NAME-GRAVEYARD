@@ -6,9 +6,30 @@ describe("open data API", () => {
     vi.restoreAllMocks();
   });
 
-  test("fetches real defunct companies from Wikimedia sources", async () => {
+  test("combines Killed by Google records with Wikimedia companies", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
       const url = String(input);
+
+      if (url.includes("killedbygoogle") && url.includes("graveyard.json")) {
+        return jsonResponse([
+          {
+            name: "Google Stadia",
+            dateOpen: "2019-11-19",
+            dateClose: "2023-01-18",
+            description: "Google Stadia was a cloud gaming service.",
+            type: "service",
+            link: "https://www.theverge.com/2022/9/29/23378713/google-stadia-shutting-down-game-streaming-january-2023/"
+          },
+          {
+            name: "Google Reader",
+            dateOpen: "2005-10-07",
+            dateClose: "2013-07-01",
+            description: "Google Reader was an RSS feed reader.",
+            type: "service",
+            link: "https://en.wikipedia.org/wiki/Google_Reader"
+          }
+        ]);
+      }
 
       if (url.includes("categorymembers")) {
         return jsonResponse({
@@ -46,16 +67,25 @@ describe("open data API", () => {
       throw new Error(`Unexpected URL: ${url}`);
     });
 
-    const startups = await fetchOpenDataStartups(1);
+    const startups = await fetchOpenDataStartups(2);
 
-    expect(fetchMock).toHaveBeenCalledTimes(3);
-    expect(startups).toHaveLength(1);
+    expect(fetchMock).toHaveBeenCalledTimes(5);
+    expect(startups).toHaveLength(2);
     expect(startups[0]).toMatchObject({
+      name: "Google Stadia",
+      founded: "2019",
+      died: "2023",
+      sourceUrl:
+        "https://www.theverge.com/2022/9/29/23378713/google-stadia-shutting-down-game-streaming-january-2023/",
+      dataSource: "Killed by Google"
+    });
+    expect(startups[1]).toMatchObject({
       name: "Aereo",
       founded: "2012",
       died: "2014",
       sourceUrl: "https://en.wikipedia.org/wiki/Aereo",
-      wikidataId: "Q4687964"
+      wikidataId: "Q4687964",
+      dataSource: "Wikipedia + Wikidata"
     });
   });
 });

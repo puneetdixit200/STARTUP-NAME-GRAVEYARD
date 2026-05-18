@@ -303,11 +303,11 @@ export default function App() {
 
 function realDataMessage(status: "idle" | "loading" | "live" | "fallback"): string {
   if (status === "loading") {
-    return "Exhuming live company data from Wikipedia and Wikidata.";
+    return "Exhuming live company data from Killed by Google, Wikipedia, and Wikidata.";
   }
 
   if (status === "live") {
-    return "Real graves sourced from Wikipedia and Wikidata.";
+    return "Real graves sourced from Killed by Google, Wikipedia, and Wikidata.";
   }
 
   if (status === "fallback") {
@@ -459,7 +459,7 @@ function LeaderboardPanel({
   mode: GraveyardMode;
 }) {
   if (mode === "real") {
-    const sourceBackedCount = startups.filter((startup) => startup.sourceUrl || startup.wikidataId).length;
+    const sourceBackedCount = startups.filter((startup) => startup.sourceUrl || startup.wikidataId || startup.dataSource).length;
     const earliestFounded = findStartupByYear(startups, "founded", "earliest");
     const latestDied = findStartupByYear(startups, "died", "latest");
 
@@ -473,7 +473,7 @@ function LeaderboardPanel({
           <Metric
             title="Source-Backed Graves"
             value={`${sourceBackedCount}/${startups.length}`}
-            note="Wikipedia or Wikidata records"
+            note="Wikipedia, Wikidata, or Killed by Google records"
           />
           <Metric
             title="Earliest Founded"
@@ -581,7 +581,14 @@ function realTickerLine(startup: Startup): string {
     startup.founded !== "Unknown" ? `founded ${startup.founded}` : null,
     startup.died !== "Unknown" ? `died ${startup.died}` : null
   ].filter(Boolean);
-  const source = startup.wikidataId ? `Wikidata ${startup.wikidataId}` : startup.sourceUrl ? "Wikipedia" : "curated fallback";
+  const source =
+    startup.dataSource === "Killed by Google"
+      ? "Killed by Google"
+      : startup.wikidataId
+        ? `Wikidata ${startup.wikidataId}`
+        : startup.sourceUrl
+          ? "Wikipedia"
+          : "curated fallback";
 
   return `Open data: ${startup.name} documented as defunct${dates.length ? `, ${dates.join(", ")}` : ""}; source ${source}`;
 }

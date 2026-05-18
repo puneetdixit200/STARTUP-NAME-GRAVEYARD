@@ -43,7 +43,7 @@ export function buildEulogy({
 }
 
 function buildRealStartupMetrics(startup: Startup): string[] {
-  const sourceName = startup.wikidataId ? "Wikidata" : startup.sourceUrl ? "Wikipedia" : "curated fallback data";
+  const sourceName = startup.wikidataId ? "Wikidata" : startup.dataSource ?? (startup.sourceUrl ? "Wikipedia" : "curated fallback data");
   const metrics: string[] = [];
 
   if (startup.founded !== "Unknown") {
@@ -69,6 +69,10 @@ function buildRealCauseOfDeath(startup: Startup): string {
 }
 
 function sourceLabel(startup: Startup): string {
+  if (startup.dataSource === "Killed by Google") {
+    return "Killed by Google";
+  }
+
   if (startup.wikidataId) {
     return `Wikipedia + Wikidata ${startup.wikidataId}`;
   }
@@ -81,6 +85,10 @@ function sourceLabel(startup: Startup): string {
 }
 
 function sourceSentence(startup: Startup): string {
+  if (startup.dataSource === "Killed by Google") {
+    return "Source: Killed by Google public JSON dataset.";
+  }
+
   if (startup.sourceUrl && startup.wikidataId) {
     return `Source: Wikipedia summary and Wikidata ${startup.wikidataId}.`;
   }
