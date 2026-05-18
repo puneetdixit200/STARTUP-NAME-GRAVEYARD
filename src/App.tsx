@@ -1,13 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { CSSProperties, Dispatch, FormEvent, MutableRefObject, SetStateAction } from "react";
+import type { CSSProperties, Dispatch, MutableRefObject, SetStateAction } from "react";
 import {
   BarChart3,
   Download,
   Github,
   RefreshCw,
   RotateCcw,
-  Search,
-  Shovel,
   Skull,
   Volume2,
   VolumeX,
@@ -15,9 +13,6 @@ import {
 } from "lucide-react";
 import {
   calculateLeaderboard,
-  createCustomStartup,
-  domainGraveOptions,
-  filterStartups,
   generateStartups,
   getSeasonalEvent,
   MAX_GRAVES_PER_GRAVEYARD,
@@ -28,7 +23,7 @@ import {
 import { fetchBuzzwordBatch, fetchDomainHint, fetchEulogyIngredients, fetchOpenDataStartups } from "./lib/api";
 import { buildEulogy, resurrectStartup } from "./lib/eulogy";
 import { downloadTombstoneCard } from "./lib/shareCard";
-import type { GraveyardMode, Startup, StartupSector } from "./types";
+import type { GraveyardMode, Startup } from "./types";
 
 const INITIAL_COUNT = 20;
 const MORE_COUNT = 12;
@@ -44,13 +39,8 @@ export default function App() {
     boredActivity: string;
   } | null>(null);
   const [rumbling, setRumbling] = useState(false);
-  const [digging, setDigging] = useState(false);
-  const [customName, setCustomName] = useState("");
-  const [customTagline, setCustomTagline] = useState("");
   const [resurrectingId, setResurrectingId] = useState<string | null>(null);
   const [audioEnabled, setAudioEnabled] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [activeSector, setActiveSector] = useState<StartupSector | "All">("All");
   const [realDataStatus, setRealDataStatus] = useState<"idle" | "loading" | "live" | "fallback">("idle");
   const [openDataLoaded, setOpenDataLoaded] = useState(false);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
@@ -58,10 +48,7 @@ export default function App() {
 
   const currentStartups = mode === "generated" ? generatedStartups : realCemetery;
   const baseStartups = currentStartups.slice(0, MAX_GRAVES_PER_GRAVEYARD);
-  const visibleStartups = useMemo(
-    () => filterStartups(baseStartups, { query: searchQuery, sector: activeSector }),
-    [activeSector, baseStartups, searchQuery]
-  );
+  const visibleStartups = baseStartups;
   const selectedStartup = baseStartups.find((startup) => startup.id === selectedId) ?? null;
   const leaderboard = useMemo(() => calculateLeaderboard(visibleStartups), [visibleStartups]);
   const seasonalEvent = useMemo(() => getSeasonalEvent(), []);
@@ -179,23 +166,9 @@ export default function App() {
   const generateNewGraveyard = () => {
     setMode("generated");
     setSelectedId(null);
-    setSearchQuery("");
-    setActiveSector("All");
     setRumbling(true);
     setGeneratedStartups(generateStartups(INITIAL_COUNT, Date.now() % 1000));
     window.setTimeout(() => setRumbling(false), 700);
-  };
-
-  const buryStartup = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const startup = createCustomStartup(customName, customTagline, Math.min(generatedStartups.length + 1, MAX_GRAVES_PER_GRAVEYARD));
-    setMode("generated");
-    setSearchQuery("");
-    setActiveSector("All");
-    setGeneratedStartups((current) => [startup, ...current].slice(0, MAX_GRAVES_PER_GRAVEYARD));
-    setCustomName("");
-    setCustomTagline("");
-    setDigging(false);
   };
 
   const resurrectSelected = () => {
@@ -266,10 +239,6 @@ export default function App() {
             <Skull size={18} />
             Real Startup Graveyard
           </button>
-          <button type="button" onClick={() => setDigging((value) => !value)} aria-expanded={digging}>
-            <Shovel size={18} />
-            Dig a grave
-          </button>
           <button type="button" onClick={toggleAudio} aria-pressed={audioEnabled}>
             {audioEnabled ? <VolumeX size={18} /> : <Volume2 size={18} />}
             {audioEnabled ? "Mute Soundscape" : "Enter Mystery Soundscape"}
@@ -284,70 +253,7 @@ export default function App() {
         )}
       </section>
 
-      <section className="graveyard-tools" aria-label="Search and domain grave filters">
-        <label className="search-field" htmlFor="graveyard-search">
-          <Search size={18} />
-          <span>Search the graveyard</span>
-          <input
-            id="graveyard-search"
-            type="search"
-            value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder="Search names, domains, sectors, causes..."
-          />
-        </label>
-        <div className="domain-filters" aria-label="Domain-specific graves">
-          <button
-            type="button"
-            className={activeSector === "All" ? "active" : ""}
-            aria-pressed={activeSector === "All"}
-            onClick={() => setActiveSector("All")}
-          >
-            All graves
-          </button>
-          {domainGraveOptions.map((sector) => (
-            <button
-              key={sector}
-              type="button"
-              className={activeSector === sector ? "active" : ""}
-              aria-pressed={activeSector === sector}
-              onClick={() => setActiveSector(sector)}
-            >
-              {sector} graves
-            </button>
-          ))}
-        </div>
-        <p className="result-count">
-          {visibleStartups.length} {visibleStartups.length === 1 ? "grave" : "graves"} exhumed
-        </p>
-      </section>
-
       <VCTicker startups={visibleStartups} />
-
-      {digging && (
-        <form className="dig-form" onSubmit={buryStartup}>
-          <label>
-            Startup name
-            <input
-              value={customName}
-              onChange={(event) => setCustomName(event.target.value)}
-              placeholder="PitchDeckOS"
-            />
-          </label>
-          <label>
-            Fatal pitch
-            <input
-              value={customTagline}
-              onChange={(event) => setCustomTagline(event.target.value)}
-              placeholder="Investor-grade vibes for spreadsheet avoiders."
-            />
-          </label>
-          <button type="submit">
-            <Shovel size={18} />
-            Bury Startup
-          </button>
-        </form>
-      )}
 
       <LeaderboardPanel leaderboard={leaderboard} />
 
