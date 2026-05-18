@@ -23,6 +23,10 @@ describe("Startup Name Graveyard app", () => {
     });
     expect(screen.getByRole("button", { name: /Open eulogy for Quibi/i })).toBeInTheDocument();
     expect(screen.getByText(/Reality mode has enough casualties/i)).toBeInTheDocument();
+    expect(screen.getByText(/Open Data Ledger/i)).toBeInTheDocument();
+    expect(screen.getByText(/Source-Backed Graves/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Most Pivots Before Death/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/raised \$/i)).not.toBeInTheDocument();
   });
 
   test("opens eulogy, resurrects a startup, and exposes share action", async () => {

@@ -18,6 +18,15 @@ export function buildEulogy({
 }): Eulogy {
   const closingLine = closingLines[startup.metrics.pivotCount % closingLines.length];
 
+  if (startup.mode === "real") {
+    return {
+      title: `In loving memory of ${startup.name}`,
+      metrics: buildRealStartupMetrics(startup),
+      cause: buildRealCauseOfDeath(startup),
+      body: `${startup.origin ?? "Wikipedia marks this company as defunct."} ${sourceSentence(startup)}`
+    };
+  }
+
   return {
     title: `In loving memory of ${startup.name}`,
     metrics: [
@@ -31,6 +40,59 @@ export function buildEulogy({
     cause: `Cause of Death: ${startup.causeOfDeath}`,
     body: `${closingLine} They disrupted nothing. ${startup.origin ?? "Their founders are currently advising stealth companies."}`
   };
+}
+
+function buildRealStartupMetrics(startup: Startup): string[] {
+  const sourceName = startup.wikidataId ? "Wikidata" : startup.sourceUrl ? "Wikipedia" : "curated fallback data";
+  const unavailable = "Not available from Wikipedia or Wikidata.";
+
+  return [
+    `Founded: ${formatKnownApiValue(startup.founded, sourceName)}`,
+    `Died: ${formatKnownApiValue(startup.died, sourceName)}`,
+    `Series/Funding: ${unavailable}`,
+    `Pivot Count: ${unavailable}`,
+    `Last Pivot: ${unavailable}`,
+    `Total Users: ${unavailable}`,
+    `Runway: ${unavailable}`,
+    `Valuation: ${unavailable}`,
+    `Source: ${sourceLabel(startup)}.`
+  ];
+}
+
+function buildRealCauseOfDeath(startup: Startup): string {
+  if (startup.resurrections > 0) {
+    return `Cause of Death: ${startup.causeOfDeath}`;
+  }
+
+  return "Cause of Death: Specific cause is not available from Wikipedia or Wikidata. Recorded status: defunct/dissolved in open records.";
+}
+
+function formatKnownApiValue(value: string, sourceName: string): string {
+  return value === "Unknown" ? "Not available from Wikipedia or Wikidata." : `${value} (${sourceName}).`;
+}
+
+function sourceLabel(startup: Startup): string {
+  if (startup.wikidataId) {
+    return `Wikipedia + Wikidata ${startup.wikidataId}`;
+  }
+
+  if (startup.sourceUrl) {
+    return "Wikipedia";
+  }
+
+  return "Curated fallback record";
+}
+
+function sourceSentence(startup: Startup): string {
+  if (startup.sourceUrl && startup.wikidataId) {
+    return `Source: Wikipedia summary and Wikidata ${startup.wikidataId}.`;
+  }
+
+  if (startup.sourceUrl) {
+    return "Source: Wikipedia summary.";
+  }
+
+  return "Source: curated fallback record shown because open data was unavailable.";
 }
 
 export function resurrectStartup(startup: Startup): Startup {

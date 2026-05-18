@@ -114,7 +114,7 @@ export default function App() {
       return;
     }
 
-    if (import.meta.env.MODE === "test") {
+    if (selectedStartup.mode === "real" || import.meta.env.MODE === "test") {
       return;
     }
 
@@ -259,9 +259,9 @@ export default function App() {
         )}
       </section>
 
-      <VCTicker startups={baseStartups} />
+      <VCTicker startups={baseStartups} mode={mode} />
 
-      <LeaderboardPanel leaderboard={leaderboard} />
+      <LeaderboardPanel leaderboard={leaderboard} startups={baseStartups} mode={mode} />
 
       <section className="graveyard" aria-label="Startup tombstones">
         {isLoadingRealStartups ? (
@@ -449,7 +449,47 @@ function EulogyDialog({
   );
 }
 
-function LeaderboardPanel({ leaderboard }: { leaderboard: ReturnType<typeof calculateLeaderboard> }) {
+function LeaderboardPanel({
+  leaderboard,
+  startups,
+  mode
+}: {
+  leaderboard: ReturnType<typeof calculateLeaderboard>;
+  startups: Startup[];
+  mode: GraveyardMode;
+}) {
+  if (mode === "real") {
+    const sourceBackedCount = startups.filter((startup) => startup.sourceUrl || startup.wikidataId).length;
+    const earliestFounded = findStartupByYear(startups, "founded", "earliest");
+    const latestDied = findStartupByYear(startups, "died", "latest");
+
+    return (
+      <section className="leaderboard" aria-label="Real startup source ledger">
+        <header>
+          <BarChart3 size={20} />
+          <h2>Open Data Ledger</h2>
+        </header>
+        <div className="leader-grid">
+          <Metric
+            title="Source-Backed Graves"
+            value={`${sourceBackedCount}/${startups.length}`}
+            note="Wikipedia or Wikidata records"
+          />
+          <Metric
+            title="Earliest Founded"
+            value={earliestFounded?.name ?? "Unknown"}
+            note={earliestFounded ? `Founded ${earliestFounded.founded}` : "Not available from open data"}
+          />
+          <Metric
+            title="Latest Recorded Death"
+            value={latestDied?.name ?? "Unknown"}
+            note={latestDied ? `Died ${latestDied.died}` : "Not available from open data"}
+          />
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="leaderboard" aria-label="Graveyard leaderboard">
       <header>
@@ -473,6 +513,33 @@ function LeaderboardPanel({ leaderboard }: { leaderboard: ReturnType<typeof calc
   );
 }
 
+function findStartupByYear(
+  startups: Startup[],
+  field: "founded" | "died",
+  direction: "earliest" | "latest"
+): Startup | null {
+  const known = startups
+    .map((startup) => ({ startup, year: readDisplayYear(startup[field]) }))
+    .filter((item): item is { startup: Startup; year: number } => item.year !== null);
+
+  if (known.length === 0) {
+    return null;
+  }
+
+  return known.reduce((winner, item) => {
+    if (direction === "earliest") {
+      return item.year < winner.year ? item : winner;
+    }
+
+    return item.year > winner.year ? item : winner;
+  }).startup;
+}
+
+function readDisplayYear(value: string): number | null {
+  const match = /^(\d{4})$/.exec(value);
+  return match ? Number(match[1]) : null;
+}
+
 function Metric({ title, value, note }: { title: string; value: string; note: string }) {
   return (
     <article className="leader-metric">
@@ -483,18 +550,21 @@ function Metric({ title, value, note }: { title: string; value: string; note: st
   );
 }
 
-function VCTicker({ startups }: { startups: Startup[] }) {
-  const copy = startups
-    .slice(0, 10)
-    .map(
-      (startup) =>
-        `Breaking: ${startup.name} raised $${startup.metrics.seriesA.toFixed(1)}M to disrupt ${startup.tagline
-          .split(" ")
-          .slice(0, 3)
-          .join(" ")
-          .toLowerCase()}`
-    )
-    .join("     ");
+function VCTicker({ startups, mode }: { startups: Startup[]; mode: GraveyardMode }) {
+  const copy =
+    mode === "real"
+      ? startups.slice(0, 10).map(realTickerLine).join("     ")
+      : startups
+          .slice(0, 10)
+          .map(
+            (startup) =>
+              `Breaking: ${startup.name} raised $${startup.metrics.seriesA.toFixed(1)}M to disrupt ${startup.tagline
+                .split(" ")
+                .slice(0, 3)
+                .join(" ")
+                .toLowerCase()}`
+          )
+          .join("     ");
 
   return (
     <div className="ticker" aria-label="VC funding ticker">
@@ -504,6 +574,16 @@ function VCTicker({ startups }: { startups: Startup[] }) {
       </div>
     </div>
   );
+}
+
+function realTickerLine(startup: Startup): string {
+  const dates = [
+    startup.founded !== "Unknown" ? `founded ${startup.founded}` : null,
+    startup.died !== "Unknown" ? `died ${startup.died}` : null
+  ].filter(Boolean);
+  const source = startup.wikidataId ? `Wikidata ${startup.wikidataId}` : startup.sourceUrl ? "Wikipedia" : "curated fallback";
+
+  return `Open data: ${startup.name} documented as defunct${dates.length ? `, ${dates.join(", ")}` : ""}; source ${source}`;
 }
 
 function Crows() {
