@@ -17,6 +17,8 @@ export const domainGraveOptions: StartupSector[] = [
   "Infrastructure"
 ];
 
+export const MAX_GRAVES_PER_GRAVEYARD = 20;
+
 const logoDomains = [
   "apple.com",
   "stripe.com",
@@ -142,7 +144,8 @@ export function createCustomStartup(name: string, tagline: string, index = 0): S
 }
 
 export function generateStartups(count: number, offset = 0): Startup[] {
-  return Array.from({ length: count }, (_, index) => createStartup({ index: index + offset }));
+  const cappedCount = Math.max(0, Math.min(count, MAX_GRAVES_PER_GRAVEYARD));
+  return Array.from({ length: cappedCount }, (_, index) => createStartup({ index: index + offset }));
 }
 
 export function updateStartup(startups: Startup[], replacement: Startup): Startup[] {

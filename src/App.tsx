@@ -20,6 +20,7 @@ import {
   filterStartups,
   generateStartups,
   getSeasonalEvent,
+  MAX_GRAVES_PER_GRAVEYARD,
   realStartups,
   updateStartup,
   withStartupTagline
@@ -53,7 +54,8 @@ export default function App() {
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const soundscapeRef = useRef<Soundscape | null>(null);
 
-  const baseStartups = mode === "generated" ? generatedStartups : realCemetery;
+  const currentStartups = mode === "generated" ? generatedStartups : realCemetery;
+  const baseStartups = currentStartups.slice(0, MAX_GRAVES_PER_GRAVEYARD);
   const visibleStartups = useMemo(
     () => filterStartups(baseStartups, { query: searchQuery, sector: activeSector }),
     [activeSector, baseStartups, searchQuery]
@@ -97,7 +99,14 @@ export default function App() {
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
-          setGeneratedStartups((current) => [...current, ...generateStartups(MORE_COUNT, current.length)]);
+          setGeneratedStartups((current) => {
+            if (current.length >= MAX_GRAVES_PER_GRAVEYARD) {
+              return current;
+            }
+
+            const remainingSlots = MAX_GRAVES_PER_GRAVEYARD - current.length;
+            return [...current, ...generateStartups(Math.min(MORE_COUNT, remainingSlots), current.length)];
+          });
         }
       },
       { rootMargin: "600px" }
@@ -144,11 +153,11 @@ export default function App() {
 
   const buryStartup = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const startup = createCustomStartup(customName, customTagline, generatedStartups.length + 1);
+    const startup = createCustomStartup(customName, customTagline, Math.min(generatedStartups.length + 1, MAX_GRAVES_PER_GRAVEYARD));
     setMode("generated");
     setSearchQuery("");
     setActiveSector("All");
-    setGeneratedStartups((current) => [startup, ...current]);
+    setGeneratedStartups((current) => [startup, ...current].slice(0, MAX_GRAVES_PER_GRAVEYARD));
     setCustomName("");
     setCustomTagline("");
     setDigging(false);
@@ -317,7 +326,7 @@ export default function App() {
       </section>
 
       <div ref={sentinelRef} className="scroll-sentinel">
-        {mode === "generated" ? "The graveyard keeps going." : "Reality mode has enough casualties."}
+        {mode === "generated" ? "Maximum 20 graves exhumed per graveyard." : "Reality mode has enough casualties."}
       </div>
 
       {selectedStartup && eulogy && (

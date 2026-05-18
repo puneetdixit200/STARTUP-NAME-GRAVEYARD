@@ -4,6 +4,7 @@ import {
   createStartup,
   domainGraveOptions,
   filterStartups,
+  generateStartups,
   getSeasonalEvent,
   realStartups,
   startupNameParts
@@ -38,6 +39,10 @@ describe("startup generation", () => {
     expect(startupNameParts.prefixes).toContain("Quantum");
     expect(startupNameParts.cores).toContain("Forge");
     expect(startupNameParts.suffixes).toContain(".ai");
+  });
+
+  test("caps one generated graveyard at 20 graves", () => {
+    expect(generateStartups(30)).toHaveLength(20);
   });
 
   test("leaderboard surfaces highest pivots, shortest lifespan, and noisiest tagline", () => {

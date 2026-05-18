@@ -47,7 +47,8 @@ describe("Startup Name Graveyard app", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /Bury Startup/i }));
 
-    expect(await screen.findByText("PitchDeckOS")).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /Open eulogy for PitchDeckOS/i })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /Open eulogy for/i })).toHaveLength(20);
   });
 
   test("searches and filters domain-specific graves", async () => {
