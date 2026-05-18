@@ -1,10 +1,21 @@
-import type { Leaderboard, SeasonalEvent, Startup, StartupMetrics } from "../types";
+import type { Leaderboard, SeasonalEvent, Startup, StartupMetrics, StartupSector } from "../types";
 
 export const startupNameParts = {
   prefixes: ["Uber", "Sync", "Block", "Cloud", "Meta", "Hyper", "Quantum", "Neural", "Flux", "Omni"],
   cores: ["Scale", "Stack", "Forge", "Pulse", "Mint", "Grid", "Logic", "Surge", "Link", "Flow"],
   suffixes: [".ai", ".io", "ly", "ify", "Hub", "Labs", "OS", "X", "Base", ""]
 };
+
+export const domainGraveOptions: StartupSector[] = [
+  "AI",
+  "Crypto",
+  "SaaS",
+  "Consumer",
+  "Media",
+  "Health",
+  "Hardware",
+  "Infrastructure"
+];
 
 const logoDomains = [
   "apple.com",
@@ -110,6 +121,7 @@ export function createStartup({
     epitaph: "Founded: Yesterday. Died: Also Yesterday.",
     row: Math.floor(index / 4),
     mode: "generated",
+    sector: deriveSector({ name, tagline: finalTagline, index }),
     resurrections: 0
   };
 }
@@ -146,6 +158,35 @@ export function withStartupTagline(startup: Startup, tagline: string): Startup {
       buzzwordCount: countBuzzwords(tagline)
     }
   };
+}
+
+export function filterStartups(
+  startups: Startup[],
+  filters: {
+    query?: string;
+    sector?: StartupSector | "All";
+  }
+): Startup[] {
+  const normalizedQuery = filters.query?.trim().toLowerCase() ?? "";
+  const sector = filters.sector ?? "All";
+
+  return startups.filter((startup) => {
+    const matchesSector = sector === "All" || startup.sector === sector;
+    const searchable = [
+      startup.name,
+      startup.tagline,
+      startup.logoDomain,
+      startup.domainHint,
+      startup.sector,
+      startup.causeOfDeath,
+      startup.epitaph,
+      startup.origin ?? ""
+    ]
+      .join(" ")
+      .toLowerCase();
+
+    return matchesSector && (!normalizedQuery || searchable.includes(normalizedQuery));
+  });
 }
 
 export function calculateLeaderboard(startups: Startup[]): Leaderboard {
@@ -196,16 +237,18 @@ export const realStartups: Startup[] = [
     founded: "2018",
     died: "2020",
     pivotCount: 4,
+    sector: "Media",
     origin: "A real cautionary tale about confusing capital with demand."
   }),
   createRealStartup({
     index: 1,
     name: "Theranos",
-    tagline: "Revolutionary health-tech theater with a laboratory-shaped hole.",
+    tagline: "Revolutionary blood-testing theater with a laboratory-shaped hole.",
     logoDomain: "theranos.com",
     founded: "2003",
     died: "2018",
     pivotCount: 9,
+    sector: "Health",
     origin: "The real one hits different."
   }),
   createRealStartup({
@@ -216,6 +259,7 @@ export const realStartups: Startup[] = [
     founded: "2012",
     died: "2017",
     pivotCount: 2,
+    sector: "Media",
     origin: "Proof that loved products can still get buried."
   }),
   createRealStartup({
@@ -226,6 +270,7 @@ export const realStartups: Startup[] = [
     founded: "2013",
     died: "2017",
     pivotCount: 5,
+    sector: "Hardware",
     origin: "Hardware is hard. Packets were not."
   }),
   createRealStartup({
@@ -236,6 +281,7 @@ export const realStartups: Startup[] = [
     founded: "1998",
     died: "2000",
     pivotCount: 3,
+    sector: "Consumer",
     origin: "A mascot cannot carry unit economics."
   }),
   createRealStartup({
@@ -246,6 +292,7 @@ export const realStartups: Startup[] = [
     founded: "1996",
     died: "2001",
     pivotCount: 5,
+    sector: "Consumer",
     origin: "Built the future too expensively."
   }),
   createRealStartup({
@@ -256,6 +303,7 @@ export const realStartups: Startup[] = [
     founded: "2011",
     died: "2019",
     pivotCount: 11,
+    sector: "Media",
     origin: "Users loved it. Margins did not."
   }),
   createRealStartup({
@@ -266,6 +314,7 @@ export const realStartups: Startup[] = [
     founded: "2022",
     died: "2022",
     pivotCount: 1,
+    sector: "Media",
     origin: "Launched, blinked, vanished."
   })
 ];
@@ -278,6 +327,7 @@ function createRealStartup({
   founded,
   died,
   pivotCount,
+  sector,
   origin
 }: {
   index: number;
@@ -287,6 +337,7 @@ function createRealStartup({
   founded: string;
   died: string;
   pivotCount: number;
+  sector: StartupSector;
   origin: string;
 }): Startup {
   const metrics = createMetrics({
@@ -310,9 +361,44 @@ function createRealStartup({
     epitaph: `Founded: ${founded}. Died: ${died}.`,
     row: Math.floor(index / 4),
     mode: "real",
+    sector,
     resurrections: 0,
     origin
   };
+}
+
+function deriveSector({ name, tagline, index }: { name: string; tagline: string; index: number }): StartupSector {
+  const text = `${name} ${tagline}`.toLowerCase();
+
+  if (/\b(block|chain|crypto|token|dao|web3)\b/.test(text) || text.includes("blockchain")) {
+    return "Crypto";
+  }
+
+  if (/\b(ai|neural|autonomous|model)\b/.test(text) || name.toLowerCase().includes(".ai")) {
+    return "AI";
+  }
+
+  if (/\b(health|blood|wellness|mindful)\b/.test(text)) {
+    return "Health";
+  }
+
+  if (/\b(video|media|stream|content)\b/.test(text)) {
+    return "Media";
+  }
+
+  if (/\b(hardware|device|press|connected)\b/.test(text)) {
+    return "Hardware";
+  }
+
+  if (/\b(cloud|stack|infra|grid|logic)\b/.test(text)) {
+    return "Infrastructure";
+  }
+
+  if (/\b(consumer|marketplace|brand)\b/.test(text)) {
+    return "Consumer";
+  }
+
+  return domainGraveOptions[index % domainGraveOptions.length];
 }
 
 function createMetrics({

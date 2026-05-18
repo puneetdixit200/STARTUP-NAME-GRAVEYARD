@@ -2,6 +2,8 @@ import { describe, expect, test } from "vitest";
 import {
   calculateLeaderboard,
   createStartup,
+  domainGraveOptions,
+  filterStartups,
   getSeasonalEvent,
   realStartups,
   startupNameParts
@@ -27,6 +29,7 @@ describe("startup generation", () => {
     expect(startup.died).toBe("Also Yesterday");
     expect(startup.logoDomain).toMatch(/\.(com|io|ai)$/);
     expect(startup.domainHint).toBe("available-ish");
+    expect(domainGraveOptions).toContain(startup.sector);
     expect(startup.metrics.pivotCount).toBeGreaterThanOrEqual(3);
     expect(startup.metrics.pivotCount).toBeLessThanOrEqual(12);
   });
@@ -59,6 +62,23 @@ describe("startup generation", () => {
     expect(realStartups.map((startup) => startup.name)).toEqual(
       expect.arrayContaining(["Quibi", "Theranos", "Vine"])
     );
+    expect(realStartups.find((startup) => startup.name === "Quibi")?.sector).toBe("Media");
+  });
+
+  test("filters graveyards by search text and domain sector", () => {
+    const results = filterStartups(realStartups, {
+      query: "short-form",
+      sector: "Media"
+    });
+
+    expect(results.map((startup) => startup.name)).toEqual(["Quibi"]);
+    expect(results.every((startup) => startup.sector === "Media")).toBe(true);
+    expect(filterStartups(realStartups, { sector: "Media" }).map((startup) => startup.name)).toEqual(
+      expect.arrayContaining(["Quibi", "Vine"])
+    );
+    expect(filterStartups(realStartups, { query: "blood", sector: "Health" }).map((startup) => startup.name)).toEqual([
+      "Theranos"
+    ]);
   });
 
   test("seasonal events return January and October themes only", () => {

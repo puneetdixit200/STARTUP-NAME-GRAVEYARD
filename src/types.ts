@@ -1,4 +1,13 @@
 export type GraveyardMode = "generated" | "real";
+export type StartupSector =
+  | "AI"
+  | "Crypto"
+  | "SaaS"
+  | "Consumer"
+  | "Media"
+  | "Health"
+  | "Hardware"
+  | "Infrastructure";
 
 export interface StartupMetrics {
   seriesA: number;
@@ -25,6 +34,7 @@ export interface Startup {
   epitaph: string;
   row: number;
   mode: GraveyardMode;
+  sector: StartupSector;
   resurrections: number;
   origin?: string;
 }

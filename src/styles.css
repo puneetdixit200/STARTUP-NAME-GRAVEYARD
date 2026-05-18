@@ -156,6 +156,7 @@ h1 {
 
 .grave-controls button,
 .dig-form button,
+.domain-filters button,
 .modal-actions button {
   display: inline-flex;
   align-items: center;
@@ -175,10 +176,80 @@ h1 {
 .grave-controls button:hover,
 .grave-controls button.active,
 .dig-form button:hover,
+.domain-filters button:hover,
+.domain-filters button.active,
 .modal-actions button:hover {
   border-color: rgba(74, 106, 154, 0.8);
   background: rgba(34, 41, 55, 0.86);
   transform: translateY(-2px);
+}
+
+.graveyard-tools {
+  position: relative;
+  z-index: 4;
+  display: grid;
+  grid-template-columns: minmax(240px, 0.9fr) minmax(0, 1.4fr) auto;
+  gap: 0.9rem;
+  align-items: end;
+  margin: 0 clamp(1rem, 4vw, 4rem) 1rem;
+  border: 1px solid rgba(154, 154, 138, 0.18);
+  border-radius: 8px;
+  padding: 1rem;
+  background:
+    linear-gradient(120deg, rgba(8, 8, 9, 0.86), rgba(15, 17, 17, 0.72)),
+    radial-gradient(circle at top left, rgba(74, 106, 154, 0.12), transparent 42%);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.26);
+}
+
+.search-field {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.35rem 0.55rem;
+  align-items: center;
+  color: #dfe7f1;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.76rem;
+  text-transform: uppercase;
+}
+
+.search-field input {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid rgba(214, 220, 224, 0.28);
+  border-radius: 7px;
+  padding: 0.72rem 0.85rem;
+  background: rgba(0, 0, 0, 0.5);
+  color: #ffffff;
+  font-family: "Crimson Text", Georgia, serif;
+  font-size: 1.05rem;
+  outline: none;
+}
+
+.search-field input:focus {
+  border-color: rgba(113, 151, 197, 0.95);
+  box-shadow: 0 0 0 3px rgba(74, 106, 154, 0.22);
+}
+
+.domain-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.domain-filters button {
+  min-height: 38px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.9rem;
+}
+
+.result-count {
+  margin: 0;
+  color: #d6dce0;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.8rem;
+  text-align: right;
+  text-transform: uppercase;
 }
 
 .seasonal-banner {
@@ -196,20 +267,47 @@ h1 {
 .ticker {
   position: relative;
   z-index: 3;
-  display: flex;
   overflow: hidden;
   border-block: 1px solid rgba(154, 154, 138, 0.16);
   background: rgba(5, 5, 6, 0.66);
   white-space: nowrap;
 }
 
+.ticker::before,
+.ticker::after {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  bottom: 0;
+  width: 90px;
+  pointer-events: none;
+}
+
+.ticker::before {
+  left: 0;
+  background: linear-gradient(90deg, #060606, transparent);
+}
+
+.ticker::after {
+  right: 0;
+  background: linear-gradient(270deg, #060606, transparent);
+}
+
+.ticker-track {
+  display: inline-flex;
+  width: max-content;
+  animation: ticker 58s linear infinite;
+}
+
 .ticker span {
-  min-width: 100%;
+  display: inline-flex;
+  flex: 0 0 auto;
   padding: 0.72rem 0;
+  padding-right: 4rem;
   color: #c6bfaa;
   font-family: "JetBrains Mono", monospace;
   font-size: 0.82rem;
-  animation: ticker 42s linear infinite;
 }
 
 .dig-form {
@@ -337,14 +435,19 @@ h1 {
   padding: 1.6rem 1rem 1rem;
   overflow: visible;
   background:
-    radial-gradient(circle at 28% 12%, rgba(255, 255, 255, 0.12), transparent 24%),
-    linear-gradient(120deg, rgba(255, 255, 255, 0.08), transparent 28%),
-    repeating-linear-gradient(43deg, rgba(255, 255, 255, 0.025) 0 2px, transparent 2px 8px),
-    linear-gradient(180deg, #55555e, var(--stone) 60%, #24242a);
-  color: #d8d1b7;
+    radial-gradient(circle at 29% 10%, rgba(255, 255, 255, 0.18), transparent 18%),
+    radial-gradient(circle at 78% 76%, rgba(0, 0, 0, 0.36), transparent 34%),
+    linear-gradient(112deg, rgba(255, 255, 255, 0.1), transparent 22%, rgba(0, 0, 0, 0.24) 70%),
+    repeating-linear-gradient(43deg, rgba(255, 255, 255, 0.032) 0 2px, transparent 2px 8px),
+    repeating-linear-gradient(98deg, rgba(0, 0, 0, 0.08) 0 1px, transparent 1px 7px),
+    linear-gradient(180deg, #6b6b73, #34343c 48%, #18181e);
+  color: #ffffff;
   text-align: center;
   cursor: pointer;
-  box-shadow: inset 0 -18px 34px rgba(0, 0, 0, 0.36), 0 26px 42px rgba(0, 0, 0, 0.42);
+  box-shadow:
+    inset 12px 0 22px rgba(255, 255, 255, 0.04),
+    inset -18px -28px 42px rgba(0, 0, 0, 0.62),
+    0 26px 42px rgba(0, 0, 0, 0.46);
   transform: translateY(calc(var(--depth) * 9px)) translateZ(calc(var(--depth) * -34px)) rotateX(7deg);
   opacity: calc(1 - (var(--depth) * 0.045));
   filter: blur(calc(var(--depth) * 0.09px));
@@ -366,10 +469,27 @@ h1 {
   transform: translateX(-50%);
 }
 
+.tombstone::after {
+  content: "";
+  position: absolute;
+  inset: 18% 8% 9%;
+  border-radius: 36% 36% 5px 5px / 12% 12% 5px 5px;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(33, 62, 22, 0.32), transparent 18%, transparent 78%, rgba(21, 28, 16, 0.42)),
+    radial-gradient(circle at 14% 82%, rgba(39, 75, 27, 0.42), transparent 16%),
+    radial-gradient(circle at 86% 22%, rgba(74, 13, 19, 0.16), transparent 13%);
+  mix-blend-mode: multiply;
+}
+
 .tombstone:hover,
 .tombstone.active {
   border-color: rgba(74, 106, 154, 0.8);
-  box-shadow: inset 0 -18px 34px rgba(0, 0, 0, 0.36), 0 0 30px rgba(74, 106, 154, 0.42), 0 30px 50px rgba(0, 0, 0, 0.54);
+  box-shadow:
+    inset 12px 0 22px rgba(255, 255, 255, 0.05),
+    inset -18px -28px 42px rgba(0, 0, 0, 0.62),
+    0 0 30px rgba(74, 106, 154, 0.42),
+    0 30px 50px rgba(0, 0, 0, 0.58);
   filter: blur(0);
   transform: translateY(calc(var(--depth) * 9px - 8px)) translateZ(calc(var(--depth) * -34px)) rotateX(3deg);
 }
@@ -397,28 +517,28 @@ h1 {
 }
 
 .rip {
-  color: #24242a;
+  color: #ffffff;
   font-family: Cinzel, Georgia, serif;
   font-size: 1.2rem;
   font-weight: 900;
-  text-shadow: 0 1px rgba(255, 255, 255, 0.16);
+  text-shadow: 0 2px 5px #000, 0 0 16px rgba(255, 255, 255, 0.24);
 }
 
 .startup-name {
   display: block;
   max-width: 100%;
-  color: #f1ead0;
+  color: #ffffff;
   font-size: 1.28rem;
   font-weight: 700;
   line-height: 1.05;
   overflow-wrap: anywhere;
-  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.36);
+  text-shadow: 0 2px 5px #000, 0 0 16px rgba(255, 255, 255, 0.18);
 }
 
 .tagline {
   display: -webkit-box;
   min-height: 4.7rem;
-  color: var(--engraved);
+  color: #f3f3f0;
   font-size: 0.97rem;
   line-height: 1.16;
   overflow: hidden;
@@ -427,10 +547,11 @@ h1 {
 }
 
 .epitaph {
-  color: #222227;
+  color: #ffffff;
   font-size: 0.72rem;
   font-weight: 700;
   line-height: 1.25;
+  text-shadow: 0 2px 4px #000;
 }
 
 .domain-hint {
@@ -438,9 +559,22 @@ h1 {
   margin-top: auto;
   border-top: 1px solid rgba(28, 28, 32, 0.35);
   padding-top: 0.55rem;
-  color: #1d1d22;
+  color: #f6f6f0;
   font-size: 0.62rem;
   text-transform: uppercase;
+  text-shadow: 0 2px 4px #000;
+}
+
+.sector-chip {
+  border: 1px solid rgba(255, 255, 255, 0.34);
+  border-radius: 999px;
+  padding: 0.18rem 0.5rem;
+  color: #ffffff;
+  background: rgba(0, 0, 0, 0.28);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  text-shadow: 0 1px 3px #000;
 }
 
 .crack-lines {
@@ -453,6 +587,31 @@ h1 {
   stroke-width: 4;
   fill: none;
   stroke-linecap: round;
+}
+
+.github-link {
+  position: fixed;
+  z-index: 30;
+  right: 1rem;
+  bottom: 1rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 8px;
+  padding: 0.55rem 0.7rem;
+  background: rgba(4, 4, 5, 0.82);
+  color: #ffffff;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.78rem;
+  text-decoration: none;
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.44), 0 0 18px rgba(74, 106, 154, 0.2);
+  backdrop-filter: blur(10px);
+}
+
+.github-link:hover {
+  border-color: rgba(113, 151, 197, 0.95);
+  background: rgba(14, 20, 26, 0.92);
 }
 
 .lantern {
@@ -641,7 +800,7 @@ h1 {
   }
 
   to {
-    transform: translateX(-100%);
+    transform: translateX(-50%);
   }
 }
 
@@ -747,6 +906,14 @@ h1 {
     grid-template-columns: 1fr;
   }
 
+  .graveyard-tools {
+    grid-template-columns: 1fr;
+  }
+
+  .result-count {
+    text-align: left;
+  }
+
   .graveyard {
     grid-template-columns: repeat(2, minmax(160px, 1fr));
   }
@@ -780,8 +947,13 @@ h1 {
   }
 
   .grave-controls button,
+  .domain-filters button,
   .modal-actions button {
     width: 100%;
+  }
+
+  .github-link span {
+    display: none;
   }
 
   .graveyard {

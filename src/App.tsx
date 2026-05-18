@@ -3,8 +3,10 @@ import type { CSSProperties, Dispatch, FormEvent, MutableRefObject, SetStateActi
 import {
   BarChart3,
   Download,
+  Github,
   RefreshCw,
   RotateCcw,
+  Search,
   Shovel,
   Skull,
   Volume2,
@@ -14,6 +16,8 @@ import {
 import {
   calculateLeaderboard,
   createCustomStartup,
+  domainGraveOptions,
+  filterStartups,
   generateStartups,
   getSeasonalEvent,
   realStartups,
@@ -23,7 +27,7 @@ import {
 import { fetchBuzzwordBatch, fetchDomainHint, fetchEulogyIngredients } from "./lib/api";
 import { buildEulogy, resurrectStartup } from "./lib/eulogy";
 import { downloadTombstoneCard } from "./lib/shareCard";
-import type { GraveyardMode, Startup } from "./types";
+import type { GraveyardMode, Startup, StartupSector } from "./types";
 
 const INITIAL_COUNT = 20;
 const MORE_COUNT = 12;
@@ -44,13 +48,17 @@ export default function App() {
   const [customTagline, setCustomTagline] = useState("");
   const [resurrectingId, setResurrectingId] = useState<string | null>(null);
   const [audioEnabled, setAudioEnabled] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeSector, setActiveSector] = useState<StartupSector | "All">("All");
   const sentinelRef = useRef<HTMLDivElement | null>(null);
-  const audioRef = useRef<AudioContext | null>(null);
-  const oscillatorRef = useRef<OscillatorNode | null>(null);
-  const gainRef = useRef<GainNode | null>(null);
+  const soundscapeRef = useRef<Soundscape | null>(null);
 
-  const visibleStartups = mode === "generated" ? generatedStartups : realCemetery;
-  const selectedStartup = visibleStartups.find((startup) => startup.id === selectedId) ?? null;
+  const baseStartups = mode === "generated" ? generatedStartups : realCemetery;
+  const visibleStartups = useMemo(
+    () => filterStartups(baseStartups, { query: searchQuery, sector: activeSector }),
+    [activeSector, baseStartups, searchQuery]
+  );
+  const selectedStartup = baseStartups.find((startup) => startup.id === selectedId) ?? null;
   const leaderboard = useMemo(() => calculateLeaderboard(visibleStartups), [visibleStartups]);
   const seasonalEvent = useMemo(() => getSeasonalEvent(), []);
   const eulogy = useMemo(() => {
@@ -121,12 +129,14 @@ export default function App() {
   }, [selectedStartup]);
 
   useEffect(() => {
-    return () => stopDrone(audioRef, oscillatorRef, gainRef);
+    return () => stopSoundscape(soundscapeRef);
   }, []);
 
   const generateNewGraveyard = () => {
     setMode("generated");
     setSelectedId(null);
+    setSearchQuery("");
+    setActiveSector("All");
     setRumbling(true);
     setGeneratedStartups(generateStartups(INITIAL_COUNT, Date.now() % 1000));
     window.setTimeout(() => setRumbling(false), 700);
@@ -136,6 +146,8 @@ export default function App() {
     event.preventDefault();
     const startup = createCustomStartup(customName, customTagline, generatedStartups.length + 1);
     setMode("generated");
+    setSearchQuery("");
+    setActiveSector("All");
     setGeneratedStartups((current) => [startup, ...current]);
     setCustomName("");
     setCustomTagline("");
@@ -166,10 +178,10 @@ export default function App() {
 
   const toggleAudio = () => {
     if (audioEnabled) {
-      stopDrone(audioRef, oscillatorRef, gainRef);
+      stopSoundscape(soundscapeRef);
       setAudioEnabled(false);
     } else {
-      startDrone(audioRef, oscillatorRef, gainRef);
+      startSoundscape(soundscapeRef);
       setAudioEnabled(true);
     }
   };
@@ -212,7 +224,7 @@ export default function App() {
           </button>
           <button type="button" onClick={toggleAudio} aria-pressed={audioEnabled}>
             {audioEnabled ? <VolumeX size={18} /> : <Volume2 size={18} />}
-            {audioEnabled ? "Mute Drone" : "Wake Drone"}
+            {audioEnabled ? "Mute Soundscape" : "Enter Mystery Soundscape"}
           </button>
         </div>
 
@@ -222,6 +234,44 @@ export default function App() {
             <span>{seasonalEvent.banner}</span>
           </div>
         )}
+      </section>
+
+      <section className="graveyard-tools" aria-label="Search and domain grave filters">
+        <label className="search-field" htmlFor="graveyard-search">
+          <Search size={18} />
+          <span>Search the graveyard</span>
+          <input
+            id="graveyard-search"
+            type="search"
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="Search names, domains, sectors, causes..."
+          />
+        </label>
+        <div className="domain-filters" aria-label="Domain-specific graves">
+          <button
+            type="button"
+            className={activeSector === "All" ? "active" : ""}
+            aria-pressed={activeSector === "All"}
+            onClick={() => setActiveSector("All")}
+          >
+            All graves
+          </button>
+          {domainGraveOptions.map((sector) => (
+            <button
+              key={sector}
+              type="button"
+              className={activeSector === sector ? "active" : ""}
+              aria-pressed={activeSector === sector}
+              onClick={() => setActiveSector(sector)}
+            >
+              {sector} graves
+            </button>
+          ))}
+        </div>
+        <p className="result-count">
+          {visibleStartups.length} {visibleStartups.length === 1 ? "grave" : "graves"} exhumed
+        </p>
       </section>
 
       <VCTicker startups={visibleStartups} />
@@ -279,6 +329,10 @@ export default function App() {
           onShare={() => downloadTombstoneCard(selectedStartup)}
         />
       )}
+      <a className="github-link" href="https://github.com/puneetdixit200" target="_blank" rel="noreferrer" aria-label="GitHub puneetdixit200">
+        <Github size={18} />
+        <span>puneetdixit200</span>
+      </a>
     </main>
   );
 }
@@ -323,11 +377,12 @@ function Tombstone({
         <path d="M62 8 51 26l9 18-16 19 12 16-18 28" />
         <path d="M72 22 83 38l-7 18 14 16" />
       </svg>
+      <span className="sector-chip">{startup.sector} grave</span>
       <span className="rip">RIP</span>
       <span className="startup-name">{startup.name}</span>
       <span className="tagline">{startup.tagline}</span>
       <span className="epitaph">{startup.epitaph}</span>
-      <span className="domain-hint">{startup.domainHint}</span>
+      <span className="domain-hint">Domain: {startup.sector} | {startup.domainHint}</span>
       {(index + 1) % 5 === 0 && <span className="lantern" aria-hidden="true" />}
     </button>
   );
@@ -433,8 +488,10 @@ function VCTicker({ startups }: { startups: Startup[] }) {
 
   return (
     <div className="ticker" aria-label="VC funding ticker">
-      <span>{copy}</span>
-      <span>{copy}</span>
+      <div className="ticker-track">
+        <span>{copy}</span>
+        <span aria-hidden="true">{copy}</span>
+      </div>
     </div>
   );
 }
@@ -477,59 +534,140 @@ async function hydrateGeneratedStartups(
   );
 }
 
-function startDrone(
-  audioRef: MutableRefObject<AudioContext | null>,
-  oscillatorRef: MutableRefObject<OscillatorNode | null>,
-  gainRef: MutableRefObject<GainNode | null>
-): void {
+interface Soundscape {
+  context: AudioContext;
+  nodes: AudioNode[];
+  sources: AudioScheduledSourceNode[];
+  timers: number[];
+}
+
+function startSoundscape(soundscapeRef: MutableRefObject<Soundscape | null>): void {
   const AudioContextCtor =
     window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
 
-  if (!AudioContextCtor || audioRef.current) {
+  if (!AudioContextCtor || soundscapeRef.current) {
     return;
   }
 
   const context = new AudioContextCtor();
-  const oscillator = context.createOscillator();
-  const detuned = context.createOscillator();
-  const gain = context.createGain();
-  const filter = context.createBiquadFilter();
+  const master = context.createGain();
+  const lowpass = context.createBiquadFilter();
+  const drone = context.createOscillator();
+  const undertone = context.createOscillator();
+  const tremolo = context.createOscillator();
+  const tremoloDepth = context.createGain();
+  const wind = createNoiseLoop(context);
+  const windFilter = context.createBiquadFilter();
+  const windGain = context.createGain();
 
-  oscillator.type = "sawtooth";
-  oscillator.frequency.value = 48;
-  detuned.type = "sine";
-  detuned.frequency.value = 51;
-  filter.type = "lowpass";
-  filter.frequency.value = 420;
-  gain.gain.value = 0.035;
+  master.gain.value = 0.045;
+  lowpass.type = "lowpass";
+  lowpass.frequency.value = 520;
+  lowpass.Q.value = 1.8;
+  drone.type = "sawtooth";
+  drone.frequency.value = 42;
+  undertone.type = "sine";
+  undertone.frequency.value = 56.6;
+  tremolo.type = "sine";
+  tremolo.frequency.value = 0.09;
+  tremoloDepth.gain.value = 0.012;
+  windFilter.type = "bandpass";
+  windFilter.frequency.value = 180;
+  windFilter.Q.value = 0.7;
+  windGain.gain.value = 0.018;
 
-  oscillator.connect(filter);
-  detuned.connect(filter);
-  filter.connect(gain);
-  gain.connect(context.destination);
-  oscillator.start();
-  detuned.start();
+  drone.connect(lowpass);
+  undertone.connect(lowpass);
+  lowpass.connect(master);
+  tremolo.connect(tremoloDepth);
+  tremoloDepth.connect(master.gain);
+  wind.connect(windFilter);
+  windFilter.connect(windGain);
+  windGain.connect(master);
+  master.connect(context.destination);
 
-  audioRef.current = context;
-  oscillatorRef.current = oscillator;
-  gainRef.current = gain;
+  drone.start();
+  undertone.start();
+  tremolo.start();
+  wind.start();
+
+  const timers = [
+    window.setInterval(() => playDistantChime(context, master), 11500),
+    window.setInterval(() => playLowKnock(context, master), 17300)
+  ];
+
+  soundscapeRef.current = {
+    context,
+    nodes: [master, lowpass, tremoloDepth, windFilter, windGain],
+    sources: [drone, undertone, tremolo, wind],
+    timers
+  };
 }
 
-function stopDrone(
-  audioRef: MutableRefObject<AudioContext | null>,
-  oscillatorRef: MutableRefObject<OscillatorNode | null>,
-  gainRef: MutableRefObject<GainNode | null>
-): void {
-  try {
-    oscillatorRef.current?.stop();
-  } catch {
-    // Oscillators can only be stopped once; closing the context below is the real cleanup.
+function stopSoundscape(soundscapeRef: MutableRefObject<Soundscape | null>): void {
+  const soundscape = soundscapeRef.current;
+  if (!soundscape) {
+    return;
   }
 
-  oscillatorRef.current?.disconnect();
-  gainRef.current?.disconnect();
-  void audioRef.current?.close();
-  oscillatorRef.current = null;
-  gainRef.current = null;
-  audioRef.current = null;
+  soundscape.timers.forEach((timer) => window.clearInterval(timer));
+  soundscape.sources.forEach((source) => {
+    try {
+      source.stop();
+    } catch {
+      // Audio sources throw if already stopped; disconnecting and closing handles cleanup.
+    }
+    source.disconnect();
+  });
+  soundscape.nodes.forEach((node) => node.disconnect());
+  void soundscape.context.close();
+  soundscapeRef.current = null;
+}
+
+function createNoiseLoop(context: AudioContext): AudioBufferSourceNode {
+  const buffer = context.createBuffer(1, context.sampleRate * 3, context.sampleRate);
+  const channel = buffer.getChannelData(0);
+
+  for (let index = 0; index < channel.length; index += 1) {
+    channel[index] = (Math.random() * 2 - 1) * 0.38;
+  }
+
+  const source = context.createBufferSource();
+  source.buffer = buffer;
+  source.loop = true;
+  return source;
+}
+
+function playDistantChime(context: AudioContext, destination: AudioNode): void {
+  const oscillator = context.createOscillator();
+  const gain = context.createGain();
+  const now = context.currentTime;
+
+  oscillator.type = "sine";
+  oscillator.frequency.setValueAtTime(620 + Math.random() * 90, now);
+  gain.gain.setValueAtTime(0, now);
+  gain.gain.linearRampToValueAtTime(0.028, now + 0.08);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + 4.4);
+
+  oscillator.connect(gain);
+  gain.connect(destination);
+  oscillator.start(now);
+  oscillator.stop(now + 4.5);
+}
+
+function playLowKnock(context: AudioContext, destination: AudioNode): void {
+  const oscillator = context.createOscillator();
+  const gain = context.createGain();
+  const now = context.currentTime;
+
+  oscillator.type = "triangle";
+  oscillator.frequency.setValueAtTime(74, now);
+  oscillator.frequency.exponentialRampToValueAtTime(39, now + 1.4);
+  gain.gain.setValueAtTime(0.032, now);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.45);
+
+  oscillator.connect(gain);
+  gain.connect(destination);
+  oscillator.start(now);
+  oscillator.stop(now + 1.5);
 }
